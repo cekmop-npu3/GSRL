@@ -4,7 +4,7 @@ from zipfile import ZipFile
 from typing import Union
 from os import PathLike, mkdir, remove, listdir
 from shutil import rmtree
-import re
+from re import finditer, search
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -63,12 +63,12 @@ class Stats:
 
     @staticmethod
     def _get_stats(page: str, index: int) -> list:
-        start = list(re.finditer(r'\d{,3}\.\r\n', page))[-1].end()
-        end = re.search('\r\n.*\r\nКоличество\r\nбаллов', page).start()
+        start = list(finditer(r'\d{,3}\.\r\n', page))[-1].end()
+        end = search('\r\n.*\r\nКоличество\r\nбаллов', page).start()
         l = page[start:end].split('\r\n')
         names = l if not bool(index) else l[1:]
 
-        start = re.search('Отметка,\r\nполученная на\r\nвступительном\r\nиспытании\r\n', page).end()
+        start = search('Отметка,\r\nполученная на\r\nвступительном\r\nиспытании\r\n', page).end()
         marks = page[start:].split('\r\n')
 
         return list(zip(names, marks))
