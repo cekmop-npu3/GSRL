@@ -62,7 +62,7 @@ class Stats:
         }
 
     @staticmethod
-    def _get_stats(page: str, index: int) -> list:
+    def _get_stats(page: str, index: int) -> dict:
         start = list(finditer(r'\d{,3}\.\r\n', page))[-1].end()
         end = search('\r\n.*\r\nКоличество\r\nбаллов', page).start()
         l = page[start:end].split('\r\n')
@@ -71,17 +71,22 @@ class Stats:
         start = search('Отметка,\r\nполученная на\r\nвступительном\r\nиспытании\r\n', page).end()
         marks = page[start:].split('\r\n')
 
-        return list(zip(names, marks))
+        return dict(zip(names, marks))
 
-    def get_page(self) -> list:
-        s = []
+    def get_page(self) -> dict:
+        s = {}
         for index, filename in enumerate(listdir('PDF')):
             file = {'file': (f'PDF/{filename}', open(f'PDF/{filename}', 'rb').read())}
             response = self.session.post(self.url, data=self.data, files=file)
+            print(response.text)
             page = response.json().get('ParsedResults')[0].get('ParsedText')
-            s.extend(self._get_stats(page, index))
+            s.update(self._get_stats(page, index))
         rmtree('PDF')
-        return sorted([(name, float(v.replace(',', '.').replace('ll', '11').replace('З', '3'))) for name, v in s if v], key=lambda x: x[1], reverse=True)
+        return dict(
+            {key: value for key, value in sorted(
+                [(name, float(v.replace(',', '.').replace('ll', '11').replace('З', '3'))) for name, v in s.items() if
+                 v], key=lambda x: x[1], reverse=True)}
+        )
 
 
 class Excel(Workbook):
@@ -90,6 +95,12 @@ class Excel(Workbook):
         self.stats_rows = stats_rows
         self._create()
 
+    @staticmethod
+    def _header(ws: Worksheet):
+        ws.append(l := ['Фамилия, имя, отчество учащегося', 'Отметка'])
+        for index, text in zip(['A', 'B', 'C'], l):
+            ws.column_dimensions[index].width = len(text) + 5
+
     def _create(self):
         for index, items in enumerate(self.stats_rows.items()):
             if not bool(index):
@@ -97,12 +108,18 @@ class Excel(Workbook):
                 ws.title = items[0]
             else:
                 ws: Worksheet = self.create_sheet(items[0])
-            l = ['Фамилия, имя, отчество учащегося', 'Отметка']
-            ws.append(l)
-            for index, text in zip(['A', 'B', 'C'], l):
-                ws.column_dimensions[index].width = len(text) + 5
-            for student in items[1]:
-                ws.append(student)
+            self._header(ws)
+            for item in items[1].items():
+                ws.append(item)
+        if len(self.stats_rows) > 1:
+            ws: Worksheet = self.create_sheet('results')
+            s1 = {}
+            for key in self.stats_rows:
+                for key1, value1 in self.stats_rows.get(key).items():
+                    s1[key1] = value1 if key1 not in s1 else s1.get(key1) + value1
+            self._header(ws)
+            for item in sorted(s1.items(), key=lambda x: x[1], reverse=True):
+                ws.append(item)
 
 
 if __name__ == '__main__':
