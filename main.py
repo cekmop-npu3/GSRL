@@ -63,12 +63,12 @@ class Stats:
 
     @staticmethod
     def _get_stats(page: str, index: int) -> dict:
-        start = list(finditer(r'\d{,3}\.\r\n', page))[-1].end()
+        start = list(finditer(r'\d{2,3}\.\r\n', page))[-1].end()
         end = search('\r\n.*\r\nКоличество\r\nбаллов', page).start()
         l = page[start:end].split('\r\n')
         names = l if not bool(index) else l[1:]
 
-        start = search('Отметка,\r\nполученная на\r\nвступительном\r\nиспытании\r\n', page).end()
+        start = search('испытании\r\n', page).end()
         marks = page[start:].split('\r\n')
 
         return dict(zip(names, marks))
@@ -78,13 +78,12 @@ class Stats:
         for index, filename in enumerate(listdir('PDF')):
             file = {'file': (f'PDF/{filename}', open(f'PDF/{filename}', 'rb').read())}
             response = self.session.post(self.url, data=self.data, files=file)
-            print(response.text)
             page = response.json().get('ParsedResults')[0].get('ParsedText')
             s.update(self._get_stats(page, index))
         rmtree('PDF')
         return dict(
             {key: value for key, value in sorted(
-                [(name, float(v.replace(',', '.').replace('ll', '11').replace('З', '3'))) for name, v in s.items() if
+                [(name, float(v.replace('.', '').replace(',', '.').replace('ll', '11').replace('З', '3'))) for name, v in s.items() if
                  v], key=lambda x: x[1], reverse=True)}
         )
 
@@ -123,4 +122,4 @@ class Excel(Workbook):
 
 
 if __name__ == '__main__':
-    pdf = Pdf(['https://gsrl.by/images/2023/protokol_matematika_2023.pdf'])
+    pdf = Pdf(['https://gsrl.by/images/2023/protokol_matematika_2023.pdf', 'https://gsrl.by/images/2023/protokol_himiya_2023.pdf', 'https://gsrl.by/images/2023/protokol_russkiy_2023.pdf'])
