@@ -4,7 +4,7 @@ from zipfile import ZipFile
 from typing import Union
 from os import PathLike, mkdir, remove, listdir
 from shutil import rmtree
-from re import finditer, search
+from re import findall
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -24,7 +24,7 @@ class Pdf:
             remove(path)
             self._download(self._get_job_id())
             stats = Stats()
-            self.stats[path.split('.')[0]] = stats.get_page()
+            self.stats[path.split('.')[0]] = stats.get_stats()
         excel = Excel(self.stats)
         excel.save('results.xlsx')
 
@@ -59,32 +59,20 @@ class Stats:
             'apikey': self.token,
             'language': 'rus',
             'scale': 'true',
+            'OCREngine': 3
         }
 
-    @staticmethod
-    def _get_stats(page: str, index: int) -> dict:
-        start = list(finditer(r'\d{2,3}\.\r\n', page))[-1].end()
-        end = search('\r\n.*\r\nКоличество\r\nбаллов', page).start()
-        l = page[start:end].split('\r\n')
-        names = l if not bool(index) else l[1:]
-
-        start = search('испытании\r\n', page).end()
-        marks = page[start:].split('\r\n')
-
-        return dict(zip(names, marks))
-
-    def get_page(self) -> dict:
-        s = {}
-        for index, filename in enumerate(listdir('PDF')):
+    def get_stats(self) -> dict:
+        s = []
+        for filename in listdir('PDF'):
             file = {'file': (f'PDF/{filename}', open(f'PDF/{filename}', 'rb').read())}
             response = self.session.post(self.url, data=self.data, files=file)
             page = response.json().get('ParsedResults')[0].get('ParsedText')
-            s.update(self._get_stats(page, index))
+            results = findall(r'(\w+\s\w+\s\w+)\r\n([\d+,]+)\r\n(\d+)\r\n\d+', page)
+            s.extend([(v1, float(v2.replace(',', '.')), int(v3)) for v1, v2, v3 in results])
         rmtree('PDF')
         return dict(
-            {key: value for key, value in sorted(
-                [(name, float(v.replace('.', '').replace(',', '.').replace('ll', '11').replace('З', '3'))) for name, v in s.items() if
-                 v], key=lambda x: x[1], reverse=True)}
+            {key: [val1, val2] for key, val1, val2 in sorted(s, key=lambda x: x[1], reverse=True)}
         )
 
 
@@ -96,8 +84,8 @@ class Excel(Workbook):
 
     @staticmethod
     def _header(ws: Worksheet):
-        ws.append(l := ['Фамилия, имя, отчество учащегося', 'Отметка'])
-        for index, text in zip(['A', 'B', 'C'], l):
+        ws.append(l := ['Фамилия, имя, отчество учащегося', 'Количество баллов', 'Отметка'])
+        for index, text in zip(['A', 'B', 'C', 'D'], l):
             ws.column_dimensions[index].width = len(text) + 5
 
     def _create(self):
@@ -109,17 +97,17 @@ class Excel(Workbook):
                 ws: Worksheet = self.create_sheet(items[0])
             self._header(ws)
             for item in items[1].items():
-                ws.append(item)
+                ws.append((item[0], *item[1]))
         if len(self.stats_rows) > 1:
             ws: Worksheet = self.create_sheet('results')
             s1 = {}
             for key in self.stats_rows:
                 for key1, value1 in self.stats_rows.get(key).items():
-                    s1[key1] = value1 if key1 not in s1 else s1.get(key1) + value1
+                    s1[key1] = value1 if key1 not in s1 else list(map(sum, zip(s1.get(key1), value1)))
             self._header(ws)
             for item in sorted(s1.items(), key=lambda x: x[1], reverse=True):
-                ws.append(item)
+                ws.append((item[0], *item[1]))
 
 
 if __name__ == '__main__':
-    pdf = Pdf(['https://gsrl.by/images/2023/protokol_matematika_2023.pdf', 'https://gsrl.by/images/2023/protokol_himiya_2023.pdf', 'https://gsrl.by/images/2023/protokol_russkiy_2023.pdf'])
+    pdf = Pdf(['https://gsrl.by/images/2023/protokol_en_2023.pdf', 'https://gsrl.by/images/2023/protokol_matematika_2023.pdf'])
