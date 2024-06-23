@@ -17,7 +17,7 @@ class Excel(Workbook, metaclass=Singleton):
         super().__init__()
         self.filename = filename
 
-    def save(self, filename: str = None):
+    def save(self, filename: str = None) -> None:
         super().save(filename if filename else self.filename)
 
     def __enter__(self) -> Self:

@@ -12,12 +12,12 @@ class TaskManager:
         return self
 
     @staticmethod
-    def prepareRows(ws, ws2):
+    def prepareRows(ws, ws2) -> list[tuple]:
         newList = list(ws.iter_rows(min_row=2, values_only=True) if isinstance(ws, Worksheet) else ws)
         newList.extend(list(ws2.iter_rows(min_row=2, values_only=True)))
         return newList
 
-    def sumRows(self, c, d):
+    def sumRows(self, c, d) -> dict:
         if isinstance(c, tuple):
             return self.sumRows({c[0]: c[1]}, d)
         else:
@@ -27,26 +27,25 @@ class TaskManager:
                 c.update({d[0]: d[1]})
             return c
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         with Excel() as wb:
             if len(wb.worksheets) > 1:
                 ws: Worksheet = wb.create_sheet('Сумма')
                 for row in sorted(map(lambda item: (item[0], item[1]), reduce(self.sumRows, reduce(self.prepareRows, wb.worksheets)).items()), key=lambda x: float(x[1].replace(',', '.')), reverse=True):
                     ws.append(row)
 
-    async def gatherTasks(self, tasks: list[Task]):
+    async def gatherTasks(self, tasks: list[Task]) -> None:
         async with TaskGroup() as tg:
             [tg.create_task(self.task(**task)) for task in tasks]
 
     @staticmethod
-    async def task(file: str | bytes | PathLike, filename: str) -> Extract:
+    async def task(file: str | bytes | PathLike, filename: str) -> None:
         filename = await PdfFormatter(file, filename).format()
         with Excel() as wb:
             ws: Worksheet = wb.create_sheet(filename)
-            for row in (results := Extract(filename)):
+            for row in Extract(filename):
                 ws.append(list(row.values()))
         remove(filename)
-        return results
 
 
 async def main():
