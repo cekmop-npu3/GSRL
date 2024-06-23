@@ -52,7 +52,7 @@ async def main():
     async with TaskManager() as tm:
         await tm.gatherTasks([
             {'file': 'https://gsrl.by/wp-content/uploads/2024/06/protokol-matematika-2024.pdf', 'filename': 'protokol-matematika-2024.pdf'},
-            {'file': 'https://gsrl.by/wp-content/uploads/2024/06/protokol_22_fran.pdf', 'filename': 'protokol_22_fran.pdf'}
+            {'file': 'https://gsrl.by/wp-content/uploads/2024/06/protokol_22_nem.pdf', 'filename': 'protokol_22_fran.pdf'}
         ])
 
 
