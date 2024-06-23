@@ -85,7 +85,7 @@ class Excel(Workbook):
     @staticmethod
     def _header(ws: Worksheet):
         ws.append(l := ['Фамилия, имя, отчество учащегося', 'Количество баллов', 'Отметка'])
-        for index, text in zip(['A', 'B', 'C', 'D'], l):
+        for index, text in zip(['A', 'B', 'C'], l):
             ws.column_dimensions[index].width = len(text) + 5
 
     def _create(self):
@@ -110,4 +110,10 @@ class Excel(Workbook):
 
 
 if __name__ == '__main__':
-    pdf = Pdf(['https://gsrl.by/images/2023/protokol_en_2023.pdf', 'https://gsrl.by/images/2023/protokol_matematika_2023.pdf'])
+    from time import time
+    start = time()
+    pdf = Pdf([
+        'https://gsrl.by/images/2023/protokol_fizika__2023.pdf',
+        'https://gsrl.by/images/2023/protokol_matematika_2023.pdf'
+    ])
+    print(time() - start)
